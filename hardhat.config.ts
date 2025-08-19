@@ -8,10 +8,10 @@ const config: HardhatUserConfig = {
   solidity: {
     profiles: {
       default: {
-        version: "0.8.28",
+        version: "0.8.20",
       },
       production: {
-        version: "0.8.28",
+        version: "0.8.20",
         settings: {
           optimizer: {
             enabled: true,
@@ -22,19 +22,11 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    hardhatMainnet: {
-      type: "edr-simulated",
-      chainType: "l1",
-    },
-    hardhatOp: {
-      type: "edr-simulated",
-      chainType: "op",
-    },
-    sepolia: {
+    hoodi: {
       type: "http",
       chainType: "l1",
-      url: configVariable("SEPOLIA_RPC_URL"),
-      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+      url: "https://0xrpc.io/hoodi",
+      accounts: ["2ca342be6ba40efc272779166c424c47571ab43193318da8e98f224f385ea277"],
     },
   },
 };

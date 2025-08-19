@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "../interfaces/ISponsorRegistry.sol";
+import "./interfaces/ISponsorRegistry.sol";
 
 /**
  * @title SponsorRegistry
@@ -87,9 +87,6 @@ contract SponsorRegistry is ISponsorRegistry, Ownable, ReentrancyGuard {
         emit TaskCreated(msg.sender, taskId, description);
     }
 
-    /**
-     * @dev 标记任务完成（简化版本，实际应该有验证逻辑）
-     */
     function markTaskCompleted(address user, address sponsor, uint256 taskId) external {
         require(sponsors[sponsor].registered, "Invalid sponsor");
         require(sponsorTasks[sponsor][taskId].active, "Task not active");
