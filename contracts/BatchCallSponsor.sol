@@ -89,13 +89,6 @@ contract BatchCallSponsor is ReentrancyGuard {
     }
 
     /**
-     * @dev 获取用户的赞助商
-     */
-    function getUserSponsor(address user) external view returns (address) {
-        return userSelectedSponsor[user];
-    }
-
-    /**
      * @dev 允许接收 ETH
      */
     receive() external payable {}
