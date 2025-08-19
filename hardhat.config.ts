@@ -26,7 +26,7 @@ const config: HardhatUserConfig = {
       type: "http",
       chainType: "l1",
       url: "https://0xrpc.io/hoodi",
-      accounts: ["2ca342be6ba40efc272779166c424c47571ab43193318da8e98f224f385ea277"],
+      accounts: ["ec7388f7c4ad1e4aa2f5708bfd99f7d341f661d1899bfc45a39f47309d84c54f"],
     },
   },
 };
