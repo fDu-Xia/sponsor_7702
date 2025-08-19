@@ -10,7 +10,7 @@ const { viem } = await network.connect({
 console.log("Sending EIP-7702 sponsored batch transaction: 3x inc() + incBy(2) + incBy(3)");
 
 const publicClient = await viem.getPublicClient();
-const eoa = privateKeyToAccount('0x...')
+const eoa = privateKeyToAccount('0x8513152c72c7bcf759e2c72e0bce799f60f0ba773575cb3600173d8506d5617a')
 
 export const walletClient = createWalletClient({
   account: eoa,
@@ -19,7 +19,8 @@ export const walletClient = createWalletClient({
 })
 
 const COUNTER_ADDRESS = "0x8bE4FEAcc2c5353A75eA6deaB2ac6131dae97359";
-const BATCH_CALL_SPONSOR_ADDRESS = "0x8a6bAd23D41c167bE650Bd458933492361580760";
+const BATCH_CALL_SPONSOR_ADDRESS = "0x86f37F62a60C8E90c0f22339Cc5D28dEA74962b3";
+const SPONSOR_ADDRESS = "0x3899B9855Fe240Aaf1bBE7Fd980c1C532fea9F28";
 
 const COUNTER_ABI = [
   {
@@ -95,6 +96,11 @@ const BATCH_CALL_SPONSOR_ABI = [
         internalType: "struct BatchCallSponsor.Call[]",
         name: "calls",
         type: "tuple[]"
+      },
+      {
+        internalType: "address",
+        name: "sponsor",
+        type: "address"
       }
     ],
     name: "executeSponsored",
@@ -187,7 +193,7 @@ console.log("Total expected increase: 8");
 const executeSponsoredCallData = encodeFunctionData({
   abi: BATCH_CALL_SPONSOR_ABI,
   functionName: "executeSponsored",
-  args: [batchCalls],
+  args: [batchCalls, SPONSOR_ADDRESS],
 });
 
 console.log("Step 4: Sending EIP-7702 sponsored batch transaction");
@@ -201,7 +207,10 @@ const sponsoredBatchTx = await walletClient.sendTransaction({
 });
 
 console.log("Waiting for sponsored transaction confirmation...");
-const receipt = await publicClient.waitForTransactionReceipt({ hash: sponsoredBatchTx });
+const receipt = await publicClient.waitForTransactionReceipt({ 
+  hash: sponsoredBatchTx,
+  timeout: 60000 // 60 seconds timeout
+});
 
 console.log("✅ EIP-7702 sponsored batch execution successful!");
 console.log("   Executed: 3x inc() + 1x incBy(2) + 1x incBy(3)");

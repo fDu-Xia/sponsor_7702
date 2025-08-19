@@ -200,7 +200,10 @@ const batchTx = await walletClient.sendTransaction({
 });
 
 console.log("Waiting for transaction confirmation...");
-const receipt = await publicClient.waitForTransactionReceipt({ hash: batchTx });
+const receipt = await publicClient.waitForTransactionReceipt({ 
+  hash: batchTx,
+  timeout: 60000 // 60 seconds timeout
+});
 
 console.log("✅ EIP-7702 mixed batch execution successful!");
 console.log("   Executed: 3x inc() + 1x incBy(2) + 1x incBy(3)");

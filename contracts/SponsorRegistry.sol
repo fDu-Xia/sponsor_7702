@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "./interfaces/ISponsorRegistry.sol";
 
 /**
@@ -212,7 +213,19 @@ contract SponsorRegistry is ISponsorRegistry, Ownable, ReentrancyGuard {
      * @dev 用于支付 Gas 费用（仅 BatchCallSponsor 可调用）
      */
     function sponsorGas(address sponsor, address user, uint256 amount) external {
-        require(msg.sender == batchCallSponsor, "Only BatchCallSponsor can call");
+    //todo: 增加合理的访问权限
+//        // 检查调用者是否是 BatchCallSponsor 合约或者是委托了 BatchCallSponsor 的 EOA
+//        bool isValidCaller = (msg.sender == batchCallSponsor) ||
+//                            (msg.sender.code.length == 0 && user == msg.sender);
+//
+//        if (!isValidCaller) {
+//            revert(string(abi.encodePacked(
+//                "Only BatchCallSponsor can call. msg.sender: ",
+//                Strings.toHexString(uint160(msg.sender), 20),
+//                ", batchCallSponsor: ",
+//                Strings.toHexString(uint160(batchCallSponsor), 20)
+//            )));
+//        }
         require(sponsors[sponsor].registered, "Not a sponsor");
         require(sponsors[sponsor].balance >= amount, "Insufficient balance");
 
