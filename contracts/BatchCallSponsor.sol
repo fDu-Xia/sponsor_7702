@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/ISponsorRegistry.sol";
 
@@ -11,8 +9,6 @@ import "./interfaces/ISponsorRegistry.sol";
  * @dev EIP-7702 批量调用和赞助合约
  */
 contract BatchCallSponsor is ReentrancyGuard {
-    using ECDSA for bytes32;
-    using MessageHashUtils for bytes32;
 
     struct Call {
         address to;
@@ -26,13 +22,9 @@ contract BatchCallSponsor is ReentrancyGuard {
     // 用户选择的赞助商：user => sponsor
     mapping(address => address) public userSelectedSponsor;
 
-    // 赞助商的 relayer 地址：sponsor => relayer
-    mapping(address => address) public sponsorRelayers;
-
     event BatchExecuted(uint256 indexed nonce, Call[] calls);
     event CallExecuted(address indexed executor, address indexed to, uint256 value, bytes data);
     event SponsorSelected(address indexed user, address indexed sponsor);
-    event RelayerSet(address indexed sponsor, address indexed relayer);
     event SponsoredExecution(address indexed sponsor, address indexed user, uint256 gasUsed);
 
     constructor(address _sponsorRegistry) {
@@ -40,57 +32,43 @@ contract BatchCallSponsor is ReentrancyGuard {
     }
 
     /**
-     * @dev 设置 relayer 地址（由赞助商调用）
-     */
-    function setRelayer(address relayer) external {
-        require(sponsorRegistry.isSponsor(msg.sender), "Not a sponsor");
-        sponsorRelayers[msg.sender] = relayer;
-        emit RelayerSet(msg.sender, relayer);
-    }
-
-    /**
      * @dev 用户选择赞助商
      */
-    function selectSponsor(address sponsor, uint256 taskId) external {
+    function selectSponsor(address sponsor) external {
         require(sponsorRegistry.isSponsor(sponsor), "Invalid sponsor");
-        require(sponsorRegistry.hasCompletedTask(msg.sender, sponsor, taskId), "Task not completed");
+        require(sponsorRegistry.hasCompletedAllTasks(msg.sender, sponsor), "Not all tasks completed");
 
         userSelectedSponsor[msg.sender] = sponsor;
         emit SponsorSelected(msg.sender, sponsor);
     }
 
-    /**
-     * @dev 自执行（用户有 ETH 的情况）
-     */
     function execute(Call[] calldata calls) external payable nonReentrant {
         require(msg.sender == address(this), "Invalid authority");
         _executeBatch(calls, msg.sender);
     }
 
-    /**
-     * @dev 赞助执行（用户无 ETH，由赞助商代付）
-     */
-    function executeSponsored(
-        Call[] calldata calls,
-        bytes calldata signature,
-        address user
-    ) external payable nonReentrant {
-        // 验证调用者是否是赞助商的 relayer
+    function executeSponsored(Call[] calldata calls) external payable nonReentrant {
+        require(msg.sender == address(this), "Invalid authority");
+        
+        address user = address(this); // 当前合约地址就是用户的地址（EIP-7702）
         address sponsor = userSelectedSponsor[user];
         require(sponsor != address(0), "No sponsor selected");
-        require(sponsorRelayers[sponsor] == msg.sender, "Not authorized relayer");
-
-        // 验证签名
-        bytes memory encodedCalls = _encodeCalls(calls);
-        bytes32 digest = keccak256(abi.encodePacked(nonce, user, encodedCalls));
-        bytes32 ethSignedMessageHash = digest.toEthSignedMessageHash();
-
-        address recovered = ethSignedMessageHash.recover(signature);
-        require(recovered == user, "Invalid signature");
+        
+        // 验证用户是否完成了赞助商的所有任务
+        require(sponsorRegistry.hasCompletedAllTasks(user, sponsor), "Not all tasks completed");
+        
+        // 验证所有调用的合约地址都在赞助商的批准名单中
+        for (uint256 i = 0; i < calls.length; i++) {
+            require(sponsorRegistry.isContractApproved(sponsor, calls[i].to), "Contract not approved by sponsor");
+        }
 
         uint256 gasStart = gasleft();
         _executeBatch(calls, user);
         uint256 gasUsed = gasStart - gasleft();
+
+        // 调用 sponsorGas 完成赞助，估算一个合理的 gas 费用
+        uint256 gasAmount = gasUsed * tx.gasprice;
+        sponsorRegistry.sponsorGas(sponsor, user, gasAmount);
 
         emit SponsoredExecution(sponsor, user, gasUsed);
     }
@@ -126,22 +104,6 @@ contract BatchCallSponsor is ReentrancyGuard {
         }
 
         emit CallExecuted(executor, call.to, call.value, call.data);
-    }
-
-    /**
-     * @dev 编码调用数据
-     */
-    function _encodeCalls(Call[] calldata calls) internal pure returns (bytes memory) {
-        bytes memory encoded;
-        for (uint256 i = 0; i < calls.length; i++) {
-            encoded = abi.encodePacked(
-                encoded,
-                calls[i].to,
-                calls[i].value,
-                calls[i].data
-            );
-        }
-        return encoded;
     }
 
     /**

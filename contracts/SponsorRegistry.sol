@@ -25,18 +25,34 @@ contract SponsorRegistry is ISponsorRegistry, Ownable, ReentrancyGuard {
     // 任务计数器
     mapping(address => uint256) public taskCounter;
 
+    // 赞助商批准的合约地址：sponsor => contract => approved
+    mapping(address => mapping(address => bool)) public sponsorApprovedContracts;
+
+    // BatchCallSponsor 合约地址
+    address public batchCallSponsor;
+
     event SponsorRegistered(address indexed sponsor, string name);
     event SponsorDeposited(address indexed sponsor, uint256 amount);
     event TaskCreated(address indexed sponsor, uint256 taskId, string description);
     event TaskCompleted(address indexed user, address indexed sponsor, uint256 taskId);
     event GasSponsored(address indexed sponsor, address indexed user, uint256 amount);
+    event BatchCallSponsorSet(address indexed batchCallSponsor);
+    event ContractApproved(address indexed sponsor, address indexed contractAddr, bool approved);
 
     constructor() Ownable(msg.sender) {}
 
     /**
+     * @dev 设置 BatchCallSponsor 合约地址（仅 owner 可调用）
+     */
+    function setBatchCallSponsor(address _batchCallSponsor) external onlyOwner {
+        batchCallSponsor = _batchCallSponsor;
+        emit BatchCallSponsorSet(_batchCallSponsor);
+    }
+
+    /**
      * @dev 注册成为赞助商
      */
-    function registerSponsor(string memory name) external payable {
+    function registerSponsor(string memory name, address[] memory approvedContracts) external payable {
         require(!sponsors[msg.sender].registered, "Already registered");
         require(msg.value >= 0.01 ether, "Minimum deposit required");
 
@@ -47,6 +63,12 @@ contract SponsorRegistry is ISponsorRegistry, Ownable, ReentrancyGuard {
             balance: msg.value,
             taskIds: new uint256[](0)
         });
+
+        // 设置初始的合约白名单
+        for (uint256 i = 0; i < approvedContracts.length; i++) {
+            sponsorApprovedContracts[msg.sender][approvedContracts[i]] = true;
+            emit ContractApproved(msg.sender, approvedContracts[i], true);
+        }
 
         emit SponsorRegistered(msg.sender, name);
         emit SponsorDeposited(msg.sender, msg.value);
@@ -150,14 +172,54 @@ contract SponsorRegistry is ISponsorRegistry, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 用于支付 Gas 费用
+     * @dev 检查用户是否完成了某个赞助商的所有任务
+     */
+    function hasCompletedAllTasks(address user, address sponsor) external view returns (bool) {
+        require(sponsors[sponsor].registered, "Invalid sponsor");
+        
+        uint256[] memory taskIds = sponsors[sponsor].taskIds;
+        if (taskIds.length == 0) {
+            return false;
+        }
+        
+        for (uint256 i = 0; i < taskIds.length; i++) {
+            if (!taskCompletions[user][sponsor][taskIds[i]]) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * @dev 赞助商管理批准的合约地址
+     */
+    function setApprovedContract(address contractAddr, bool approved) external {
+        require(sponsors[msg.sender].registered, "Not a sponsor");
+        sponsorApprovedContracts[msg.sender][contractAddr] = approved;
+        emit ContractApproved(msg.sender, contractAddr, approved);
+    }
+
+    /**
+     * @dev 检查合约是否被赞助商批准
+     */
+    function isContractApproved(address sponsor, address contractAddr) external view returns (bool) {
+        return sponsorApprovedContracts[sponsor][contractAddr];
+    }
+
+    /**
+     * @dev 用于支付 Gas 费用（仅 BatchCallSponsor 可调用）
      */
     function sponsorGas(address sponsor, address user, uint256 amount) external {
+        require(msg.sender == batchCallSponsor, "Only BatchCallSponsor can call");
         require(sponsors[sponsor].registered, "Not a sponsor");
         require(sponsors[sponsor].balance >= amount, "Insufficient balance");
 
         sponsors[sponsor].balance -= amount;
         sponsors[sponsor].totalSponsored += amount;
+
+        // 转账给用户
+        payable(user).transfer(amount);
 
         emit GasSponsored(sponsor, user, amount);
     }

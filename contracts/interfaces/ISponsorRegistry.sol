@@ -26,4 +26,7 @@ interface ISponsorRegistry {
     function isSponsor(address sponsor) external view returns (bool);
     function getSponsorInfo(address sponsor) external view returns (SponsorInfo memory);
     function hasCompletedTask(address user, address sponsor, uint256 taskId) external view returns (bool);
+    function hasCompletedAllTasks(address user, address sponsor) external view returns (bool);
+    function isContractApproved(address sponsor, address contractAddr) external view returns (bool);
+    function sponsorGas(address sponsor, address user, uint256 amount) external;
 }
