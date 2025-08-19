@@ -110,6 +110,7 @@ contract SponsorRegistry is ISponsorRegistry, Ownable, ReentrancyGuard {
     }
 
     function markTaskCompleted(address user, address sponsor, uint256 taskId) external {
+        require(msg.sender == sponsor, "Only sponsor can mark task as completed");
         require(sponsors[sponsor].registered, "Invalid sponsor");
         require(sponsorTasks[sponsor][taskId].active, "Task not active");
         require(!taskCompletions[user][sponsor][taskId], "Task already completed");
