@@ -22,11 +22,11 @@ interface ISponsorRegistry {
         uint256 balance;         // 当前余额（用于支付 Gas）
         uint256[] taskIds;       // 该赞助商的任务列表
     }
-
+    function isRelayer(address) external view returns (bool);
     function isSponsor(address sponsor) external view returns (bool);
     function getSponsorInfo(address sponsor) external view returns (SponsorInfo memory);
     function hasCompletedTask(address user, address sponsor, uint256 taskId) external view returns (bool);
     function hasCompletedAllTasks(address user, address sponsor) external view returns (bool);
     function isContractApproved(address sponsor, address contractAddr) external view returns (bool);
-    function sponsorGas(address sponsor, address user, uint256 amount) external;
+    function sponsorGas(address sponsor, address user,address recipient, uint256 amount) external;
 }
